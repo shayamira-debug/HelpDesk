@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f2937">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ניהול קריאות אחזקה - צוות ועדכון קריאות</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,sans-serif;background:#f5f7fb;color:#1f2937}
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:230px;background:#1f2937;color:#fff;padding:24px 16px}
+    .logo{font-size:22px;font-weight:700}.sub{color:#9ca3af;font-size:13px;margin:5px 0 28px}
+    .nav{width:100%;background:transparent;color:#d1d5db;border:0;padding:12px;border-radius:8px;text-align:right;font-size:16px;margin-bottom:8px}
+    .nav.active,.nav:hover{background:#374151;color:#fff}
+    .content{flex:1;padding:28px}
+    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+    .top h1{margin:0}.badge{background:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+    .card,.panel{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .card{padding:18px}.label{color:#6b7280;font-size:13px}.value{font-size:28px;font-weight:700;margin-top:8px}
+    .panel{padding:18px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    input,select,textarea,button{padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-family:inherit}
+    button{cursor:pointer}.primary{background:#2563eb;color:#fff;border-color:#2563eb}.secondary{background:#fff}
+    .danger{background:#fff1f2;color:#9f1239;border-color:#fecdd3}
+    table{width:100%;border-collapse:collapse}th,td{text-align:right;padding:11px;border-bottom:1px solid #e5e7eb;font-size:14px}
+    th{color:#6b7280}.pill{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;display:inline-block}
+    .new{background:#dbeafe;color:#1d4ed8}.progress{background:#fef3c7;color:#92400e}
+    .waiting{background:#ede9fe;color:#6d28d9}.resolved{background:#dcfce7;color:#166534}.closed{background:#e5e7eb;color:#374151}
+    .activePill{background:#dcfce7;color:#166534}.inactivePill{background:#fee2e2;color:#991b1b}
+    .urgent{color:#b91c1c;font-weight:700}.high{color:#b45309;font-weight:700}
+    .notice{margin-bottom:16px;padding:12px;border-radius:8px;display:none}.error{background:#fef2f2;color:#991b1b}.ok{background:#ecfdf5;color:#166534}
+    tr.ticket-row,tr.user-row{cursor:pointer} tr.ticket-row:hover,tr.user-row:hover{background:#f9fafb}
+    .hidden{display:none}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}
+    .modal{width:min(760px,96vw);max-height:92vh;overflow:auto;background:#fff;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+    .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.modal-head h2{margin:0}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}
+    .readonly{background:#f9fafb;padding:10px;border-radius:8px;border:1px solid #e5e7eb;min-height:40px}
+    .actions{display:flex;gap:10px;justify-content:flex-start;margin-top:18px}
+    .history{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:14px}.history-item{padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:13px}
+    @media(max-width:1000px){.cards{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:760px){.app{display:block}.sidebar{width:100%}.content{padding:16px}.cards{grid-template-columns:1fr}.panel{overflow:auto}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">ניהול אחזקה</div>
+    <div class="sub">מערכת קריאות שירות</div>
+    <button id="navTickets" class="nav active" onclick="showSection('tickets')">🛠️ קריאות אחזקה</button>
+    <button id="navUsers" class="nav" onclick="showSection('users')">👥 צוות אחזקה</button>
+  </aside>
+
+  <main class="content">
+    <div class="top"><h1 id="pageTitle">קריאות אחזקה</h1><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">צוות אחזקה</div><button onclick="logout()">התנתקות</button></div></div>
+    <div id="notice" class="notice"></div>
+
+    <section id="ticketsSection">
+      <div class="cards">
+        <div class="card"><div class="label">קריאות פתוחות</div><div id="openCount" class="value">0</div></div>
+        <div class="card"><div class="label">חדשות</div><div id="newCount" class="value">0</div></div>
+        <div class="card"><div class="label">בטיפול</div><div id="progressCount" class="value">0</div></div>
+        <div class="card"><div class="label">ממתינות</div><div id="waitingCount" class="value">0</div></div>
+        <div class="card"><div class="label">דחופות</div><div id="urgentCount" class="value">0</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="toolbar">
+          <input id="search" placeholder="חיפוש..." oninput="renderTickets()">
+          <select id="category" onchange="renderTickets()">
+            <option value="">כל הקטגוריות</option><option>מזגן</option><option>חשמל</option><option>תאורה</option>
+            <option>ריהוט</option><option>ניקיון</option><option>אינסטלציה</option><option>אחר</option>
+          </select>
+          <select id="status" onchange="renderTickets()">
+            <option value="">כל הסטטוסים</option><option>חדשה</option><option>בטיפול</option><option>ממתין</option><option>נפתרה</option><option>סגורה</option>
+          </select>
+          <button class="primary" onclick="loadTickets()">רענון</button>
+        </div>
+
+        <table>
+          <thead><tr><th>מס'</th><th>נושא</th><th>מבקש</th><th>קטגוריה</th><th>מיקום</th><th>דחיפות</th><th>סטטוס</th><th>מטפל</th></tr></thead>
+          <tbody id="ticketsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="usersSection" class="hidden">
+      <div class="panel">
+        <div class="toolbar">
+          <input id="userSearch" placeholder="חיפוש מטפל..." oninput="renderUsers()">
+          <select id="userRoleFilter" onchange="renderUsers()">
+            <option value="">כל התפקידים</option>
+            <option value="manager">מנהל אחזקה</option>
+            <option value="technician">מטפל</option>
+          </select>
+          <button class="primary" onclick="openNewUser()">+ הוסף איש צוות</button>
+        </div>
+
+        <table>
+          <thead><tr><th>שם</th><th>אימייל</th><th>תפקיד</th><th>תחום טיפול</th><th>סטטוס</th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="ticketModalBackdrop" class="modal-backdrop" onclick="ticketBackdropClose(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modalTitle">פרטי קריאה</h2>
+      <button class="secondary" onclick="closeTicketModal()">✕</button>
+    </div>
+
+    <div class="grid">
+      <div class="field"><label>מבקש</label><div id="requesterName" class="readonly"></div></div>
+      <div class="field"><label>אימייל</label><div id="requesterEmail" class="readonly"></div></div>
+      <div class="field"><label>קטגוריה</label><div id="ticketCategory" class="readonly"></div></div>
+      <div class="field"><label>מיקום</label><div id="ticketLocation" class="readonly"></div></div>
+      <div class="field full"><label>נושא</label><div id="ticketSubject" class="readonly"></div></div>
+      <div class="field full"><label>תיאור</label><div id="ticketDescription" class="readonly"></div></div>
+      <div class="field"><label>סטטוס</label>
+        <select id="editStatus"><option>חדשה</option><option>בטיפול</option><option>ממתין</option><option>נפתרה</option><option>סגורה</option></select>
+      </div>
+      <div class="field"><label>דחיפות</label><div id="ticketPriority" class="readonly"></div></div>
+      <div class="field full"><label>מטפל</label><select id="editAssignedTo"></select></div>
+      <div class="field full"><label>הערת טיפול</label><textarea id="editNote" rows="4" placeholder="הוסף הערה על הטיפול..."></textarea></div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" onclick="saveTicket()">שמור עדכון</button>
+      <button class="secondary" onclick="closeTicketModal()">ביטול</button>
+    </div>
+
+    <div class="history">
+      <strong>היסטוריית הקריאה</strong>
+      <div id="historyList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="userModalBackdrop" class="modal-backdrop" onclick="userBackdropClose(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="userModalTitle">איש צוות</h2>
+      <button class="secondary" onclick="closeUserModal()">✕</button>
+    </div>
+
+    <div class="grid">
+      <div class="field"><label>שם מלא</label><input id="userFullName"></div>
+      <div class="field"><label>אימייל</label><input id="userEmail" type="email"></div>
+      <div class="field"><label>תפקיד</label>
+        <select id="userRole"><option value="manager">מנהל אחזקה</option><option value="technician">מטפל</option></select>
+      </div>
+      <div class="field"><label>תחום טיפול</label><input id="userSpecialty" placeholder="לדוגמה: חשמל / תאורה"></div>
+      <div class="field full"><label>סטטוס</label>
+        <select id="userActive"><option value="true">פעיל</option><option value="false">לא פעיל</option></select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" onclick="saveUser()">שמור</button>
+      <button class="secondary" onclick="closeUserModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://jzerktuuprgmotckfraw.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_PhMZY9SXqfENVjtn1Ya9vA_4NmJyE3b";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let tickets = [];
+  let users = [];
+  let currentTicket = null;
+  let currentUser = null;
+
+  function showNotice(text, type="ok"){
+    const el = document.getElementById("notice");
+    el.className = "notice " + type;
+    el.textContent = text;
+    el.style.display = "block";
+    setTimeout(()=>el.style.display="none",3500);
+  }
+
+  function showSection(section){
+    const ticketsOn = section === "tickets";
+    document.getElementById("ticketsSection").classList.toggle("hidden", !ticketsOn);
+    document.getElementById("usersSection").classList.toggle("hidden", ticketsOn);
+    document.getElementById("navTickets").classList.toggle("active", ticketsOn);
+    document.getElementById("navUsers").classList.toggle("active", !ticketsOn);
+    document.getElementById("pageTitle").textContent = ticketsOn ? "קריאות אחזקה" : "צוות אחזקה";
+    if(!ticketsOn) loadUsers();
+  }
+
+  async function init(){
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session){ location.href="index.html"; return; }
+    document.getElementById("adminWho").textContent = session.user.email;
+    const {data:staff,error} = await sb.from("maintenance_users")
+      .select("role,is_active").eq("auth_user_id",session.user.id).maybeSingle();
+    if(error || !staff || !staff.is_active){
+      alert("אין הרשאה למסך הניהול");
+      location.href="portal.html";
+      return;
+    }
+    await loadUsers();
+    await loadTickets();
+  }
+
+  async function logout(){
+    await sb.auth.signOut();
+    location.href="index.html";
+  }
+
+  async function loadUsers(){
+    const {data,error}=await sb.from("maintenance_users").select("*").order("full_name");
+    if(error){showNotice("שגיאה בטעינת צוות: "+error.message,"error");return;}
+    users=data||[];
+    renderUsers();
+  }
+
+  async function loadTickets(){
+    const {data,error}=await sb.from("maintenance_tickets").select("*").order("created_at",{ascending:false});
+    if(error){showNotice("שגיאה בטעינת קריאות: "+error.message,"error");return;}
+    tickets=data||[];
+    updateCounters();
+    renderTickets();
+  }
+
+  function updateCounters(){
+    document.getElementById("openCount").textContent=tickets.filter(t=>!["סגורה","נפתרה"].includes(t.status)).length;
+    document.getElementById("newCount").textContent=tickets.filter(t=>t.status==="חדשה").length;
+    document.getElementById("progressCount").textContent=tickets.filter(t=>t.status==="בטיפול").length;
+    document.getElementById("waitingCount").textContent=tickets.filter(t=>t.status==="ממתין").length;
+    document.getElementById("urgentCount").textContent=tickets.filter(t=>t.priority==="דחופה"&&!["סגורה","נפתרה"].includes(t.status)).length;
+  }
+
+  function userName(id){ return users.find(u=>u.id===id)?.full_name || "—"; }
+  function roleName(role){ return role==="manager" ? "מנהל אחזקה" : "מטפל"; }
+  function statusClass(status){ return {"חדשה":"new","בטיפול":"progress","ממתין":"waiting","נפתרה":"resolved","סגורה":"closed"}[status]||"closed"; }
+
+  function renderTickets(){
+    const q=document.getElementById("search").value.trim();
+    const category=document.getElementById("category").value;
+    const status=document.getElementById("status").value;
+    const filtered=tickets.filter(t=>{
+      const text=[t.ticket_number,t.subject,t.requester_name,t.location,t.category].join(" ");
+      return (!q||text.includes(q))&&(!category||t.category===category)&&(!status||t.status===status);
+    });
+    document.getElementById("ticketsBody").innerHTML=filtered.map(t=>`
+      <tr class="ticket-row" onclick="openTicket('${t.id}')">
+        <td>${t.ticket_number??""}</td><td>${esc(t.subject)}</td><td>${esc(t.requester_name)}</td><td>${esc(t.category)}</td>
+        <td>${esc(t.location)}</td><td class="${t.priority==="דחופה"?"urgent":t.priority==="גבוהה"?"high":""}">${esc(t.priority)}</td>
+        <td><span class="pill ${statusClass(t.status)}">${esc(t.status)}</span></td><td>${esc(userName(t.assigned_to))}</td>
+      </tr>`).join("");
+  }
+
+  function renderUsers(){
+    const q=(document.getElementById("userSearch")?.value||"").trim();
+    const role=document.getElementById("userRoleFilter")?.value||"";
+    const filtered=users.filter(u=>{
+      const text=[u.full_name,u.email,u.specialty,roleName(u.role)].join(" ");
+      return (!q||text.includes(q))&&(!role||u.role===role);
+    });
+    document.getElementById("usersBody").innerHTML=filtered.map(u=>`
+      <tr class="user-row" onclick="openUser('${u.id}')">
+        <td>${esc(u.full_name)}</td><td>${esc(u.email||"")}</td><td>${roleName(u.role)}</td><td>${esc(u.specialty||"—")}</td>
+        <td><span class="pill ${u.is_active?"activePill":"inactivePill"}">${u.is_active?"פעיל":"לא פעיל"}</span></td>
+      </tr>`).join("");
+  }
+
+  async function openTicket(id){
+    currentTicket=tickets.find(t=>t.id===id); if(!currentTicket)return;
+    document.getElementById("modalTitle").textContent=`קריאה #${currentTicket.ticket_number}`;
+    document.getElementById("requesterName").textContent=currentTicket.requester_name||"";
+    document.getElementById("requesterEmail").textContent=currentTicket.requester_email||"—";
+    document.getElementById("ticketCategory").textContent=currentTicket.category||"";
+    document.getElementById("ticketLocation").textContent=currentTicket.location||"—";
+    document.getElementById("ticketSubject").textContent=currentTicket.subject||"";
+    document.getElementById("ticketDescription").textContent=currentTicket.description||"—";
+    document.getElementById("editStatus").value=currentTicket.status;
+    document.getElementById("ticketPriority").textContent=currentTicket.priority||"";
+    document.getElementById("editNote").value="";
+    const select=document.getElementById("editAssignedTo");
+    select.innerHTML=`<option value="">ללא מטפל</option>`+users.filter(u=>u.is_active).map(u=>`<option value="${u.id}">${esc(u.full_name)}</option>`).join("");
+    select.value=currentTicket.assigned_to||"";
+    document.getElementById("ticketModalBackdrop").style.display="flex";
+    await loadHistory(currentTicket.id);
+  }
+
+  async function loadHistory(ticketId){
+    const {data,error}=await sb.from("maintenance_ticket_history").select("*").eq("ticket_id",ticketId).order("created_at",{ascending:false});
+    const box=document.getElementById("historyList");
+    if(error){box.innerHTML='<div class="history-item">לא ניתן לטעון היסטוריה</div>';return;}
+    if(!data?.length){box.innerHTML='<div class="history-item">אין עדיין היסטוריה</div>';return;}
+    box.innerHTML=data.map(h=>`<div class="history-item"><div><strong>${esc(h.action_type)}</strong></div><div>${esc(h.note||((h.old_value||"")+(h.new_value?" → "+h.new_value:"")))}</div><div style="color:#6b7280">${new Date(h.created_at).toLocaleString("he-IL")}</div></div>`).join("");
+  }
+
+  async function saveTicket(){
+    if(!currentTicket)return;
+    const newStatus=document.getElementById("editStatus").value;
+    const assignedTo=document.getElementById("editAssignedTo").value||null;
+    const note=document.getElementById("editNote").value.trim();
+    const changes=[];
+    if(newStatus!==currentTicket.status)changes.push({type:"שינוי סטטוס",old:currentTicket.status,new:newStatus});
+    if(assignedTo!==(currentTicket.assigned_to||null))changes.push({type:"הקצאת מטפל",old:userName(currentTicket.assigned_to),new:userName(assignedTo)});
+    const {error}=await sb.from("maintenance_tickets").update({status:newStatus,assigned_to:assignedTo}).eq("id",currentTicket.id);
+    if(error){showNotice("שמירת הקריאה נכשלה: "+error.message,"error");return;}
+    const historyRows=changes.map(c=>({ticket_id:currentTicket.id,action_type:c.type,old_value:c.old,new_value:c.new}));
+    if(note)historyRows.push({ticket_id:currentTicket.id,action_type:"הערת טיפול",note});
+    if(historyRows.length){
+      const {error:histError}=await sb.from("maintenance_ticket_history").insert(historyRows);
+      if(histError)showNotice("הקריאה נשמרה, אך רישום ההיסטוריה נכשל: "+histError.message,"error");
+    }
+    showNotice("הקריאה עודכנה בהצלחה","ok");
+    await loadTickets();
+    closeTicketModal();
+  }
+
+  function openNewUser(){
+    currentUser=null;
+    document.getElementById("userModalTitle").textContent="הוספת איש צוות";
+    document.getElementById("userFullName").value="";
+    document.getElementById("userEmail").value="";
+    document.getElementById("userRole").value="technician";
+    document.getElementById("userSpecialty").value="";
+    document.getElementById("userActive").value="true";
+    document.getElementById("userModalBackdrop").style.display="flex";
+  }
+
+  function openUser(id){
+    currentUser=users.find(u=>u.id===id); if(!currentUser)return;
+    document.getElementById("userModalTitle").textContent="עריכת איש צוות";
+    document.getElementById("userFullName").value=currentUser.full_name||"";
+    document.getElementById("userEmail").value=currentUser.email||"";
+    document.getElementById("userRole").value=currentUser.role||"technician";
+    document.getElementById("userSpecialty").value=currentUser.specialty||"";
+    document.getElementById("userActive").value=String(!!currentUser.is_active);
+    document.getElementById("userModalBackdrop").style.display="flex";
+  }
+
+  async function saveUser(){
+    const full_name=document.getElementById("userFullName").value.trim();
+    const email=document.getElementById("userEmail").value.trim()||null;
+    const role=document.getElementById("userRole").value;
+    const specialty=document.getElementById("userSpecialty").value.trim()||null;
+    const is_active=document.getElementById("userActive").value==="true";
+    if(!full_name){showNotice("יש להזין שם מלא","error");return;}
+
+    let error;
+    if(currentUser){
+      ({error}=await sb.from("maintenance_users").update({full_name,email,role,specialty,is_active}).eq("id",currentUser.id));
+    }else{
+      ({error}=await sb.from("maintenance_users").insert({full_name,email,role,specialty,is_active}));
+    }
+    if(error){showNotice("שמירת איש הצוות נכשלה: "+error.message,"error");return;}
+    showNotice(currentUser?"איש הצוות עודכן בהצלחה":"איש הצוות נוסף בהצלחה","ok");
+    closeUserModal();
+    await loadUsers();
+    await loadTickets();
+  }
+
+  function closeTicketModal(){document.getElementById("ticketModalBackdrop").style.display="none";currentTicket=null;}
+  function ticketBackdropClose(e){if(e.target.id==="ticketModalBackdrop")closeTicketModal();}
+  function closeUserModal(){document.getElementById("userModalBackdrop").style.display="none";currentUser=null;}
+  function userBackdropClose(e){if(e.target.id==="userModalBackdrop")closeUserModal();}
+  function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
+
+  init();
+</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));}</script>
+</body>
+</html>
