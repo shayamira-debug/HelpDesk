@@ -1,5 +1,5 @@
-const CACHE="maintenance-pwa-v5";
-const ASSETS=["./","./index.html","./portal.html","./admin.html","./manifest.webmanifest","./icon.svg"];
+const CACHE="maintenance-pwa-v11";
+const ASSETS=["./","./index.html","./portal.html","./admin.html","./manifest.webmanifest","./icon.svg","./chamber-logo.png"];
 self.addEventListener("install",e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
   self.skipWaiting();
@@ -9,6 +9,6 @@ self.addEventListener("activate",e=>{
   self.clients.claim();
 });
 self.addEventListener("fetch",e=>{
-  if(e.request.method!=="GET")return;
+  if(e.request.method!=="GET") return;
   e.respondWith(fetch(e.request).catch(()=>caches.match(e.request).then(r=>r||caches.match("./index.html"))));
 });

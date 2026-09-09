@@ -27,8 +27,8 @@
     .danger{background:#fff1f2;color:#9f1239;border-color:#fecdd3}
     table{width:100%;border-collapse:collapse}th,td{text-align:right;padding:11px;border-bottom:1px solid #e5e7eb;font-size:14px}
     th{color:#6b7280}.pill{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;display:inline-block}
-    .new{background:#dbeafe;color:#1d4ed8}.progress{background:#fef3c7;color:#92400e}
-    .waiting{background:#ede9fe;color:#6d28d9}.resolved{background:#dcfce7;color:#166534}.closed{background:#e5e7eb;color:#374151}
+    .new{background:#dbeafe;color:#1d4ed8}.progress{background:#ffedd5;color:#c2410c}
+    .waiting{background:#ede9fe;color:#6d28d9}.closed{background:#dcfce7;color:#166534}
     .activePill{background:#dcfce7;color:#166534}.inactivePill{background:#fee2e2;color:#991b1b}
     .urgent{color:#b91c1c;font-weight:700}.high{color:#b45309;font-weight:700}
     .notice{margin-bottom:16px;padding:12px;border-radius:8px;display:none}.error{background:#fef2f2;color:#991b1b}.ok{background:#ecfdf5;color:#166534}
@@ -43,12 +43,16 @@
     .history{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:14px}.history-item{padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:13px}
     @media(max-width:1000px){.cards{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:760px){.app{display:block}.sidebar{width:100%}.content{padding:16px}.cards{grid-template-columns:1fr}.panel{overflow:auto}.grid{grid-template-columns:1fr}}
-  </style>
+  
+.brand-logo{display:flex;justify-content:center;padding:8px 4px 18px}
+.brand-logo img{width:195px;max-width:100%;height:auto;background:#fff;border-radius:8px;padding:7px}
+
+</style>
 </head>
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="logo">ניהול אחזקה</div>
+    <div class="brand-logo"><img src="chamber-logo.png" alt="איגוד לשכות המסחר"></div><div class="logo">ניהול אחזקה</div>
     <div class="sub">מערכת קריאות שירות</div>
     <button id="navTickets" class="nav active" onclick="showSection('tickets')">🛠️ קריאות אחזקה</button>
     <button id="navUsers" class="nav" onclick="showSection('users')">👥 ניהול משתמשים</button>
@@ -75,7 +79,7 @@
             <option>ריהוט</option><option>ניקיון</option><option>אינסטלציה</option><option>אחר</option>
           </select>
           <select id="status" onchange="renderTickets()">
-            <option value="">כל הסטטוסים</option><option>חדשה</option><option>בטיפול</option><option>ממתין</option><option>נפתרה</option><option>סגורה</option>
+            <option value="">כל הסטטוסים</option><option>חדשה</option><option>בטיפול</option><option>ממתין</option><option>סגורה</option>
           </select>
           <button class="primary" onclick="loadTickets()">רענון</button>
         </div>
@@ -124,7 +128,7 @@
       <div class="field full"><label>נושא</label><div id="ticketSubject" class="readonly"></div></div>
       <div class="field full"><label>תיאור</label><div id="ticketDescription" class="readonly"></div></div>
       <div class="field"><label>סטטוס</label>
-        <select id="editStatus"><option>חדשה</option><option>בטיפול</option><option>ממתין</option><option>נפתרה</option><option>סגורה</option></select>
+        <select id="editStatus"><option>חדשה</option><option>בטיפול</option><option>ממתין</option><option>סגורה</option></select>
       </div>
       <div class="field"><label>דחיפות</label><div id="ticketPriority" class="readonly"></div></div>
       <div class="field full"><label>מטפל</label><select id="editAssignedTo"></select></div>
@@ -239,16 +243,16 @@
   }
 
   function updateCounters(){
-    document.getElementById("openCount").textContent=tickets.filter(t=>!["סגורה","נפתרה"].includes(t.status)).length;
+    document.getElementById("openCount").textContent=tickets.filter(t=>t.status!=="סגורה").length;
     document.getElementById("newCount").textContent=tickets.filter(t=>t.status==="חדשה").length;
     document.getElementById("progressCount").textContent=tickets.filter(t=>t.status==="בטיפול").length;
     document.getElementById("waitingCount").textContent=tickets.filter(t=>t.status==="ממתין").length;
-    document.getElementById("urgentCount").textContent=tickets.filter(t=>t.priority==="דחופה"&&!["סגורה","נפתרה"].includes(t.status)).length;
+    document.getElementById("urgentCount").textContent=tickets.filter(t=>t.priority==="דחופה"&&t.status!=="סגורה").length;
   }
 
   function userName(id){ return users.find(u=>u.id===id)?.full_name || "—"; }
   function roleName(role){ return role==="manager" ? "מנהל" : role==="technician" ? "מטפל" : "עובד רגיל"; }
-  function statusClass(status){ return {"חדשה":"new","בטיפול":"progress","ממתין":"waiting","נפתרה":"resolved","סגורה":"closed"}[status]||"closed"; }
+  function statusClass(status){ return {"חדשה":"new","בטיפול":"progress","ממתין":"waiting","סגורה":"closed"}[status]||"closed"; }
 
   function renderTickets(){
     const q=document.getElementById("search").value.trim();
