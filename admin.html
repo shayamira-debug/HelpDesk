@@ -146,6 +146,67 @@ th.sortable:hover{background:#e8eef5}
   vertical-align:middle;
   white-space:nowrap;
 }
+
+/* V1.6.5 - status palette */
+.pill.new{
+  background:#dbeafe !important;
+  color:#1d4ed8 !important;
+}
+.pill.progress{
+  background:#bbf7d0 !important;
+  color:#14532d !important;
+}
+.pill.waiting{
+  background:#ede9fe !important;
+  color:#6d28d9 !important;
+}
+.pill.closed{
+  background:#fee2e2 !important;
+  color:#b91c1c !important;
+}
+
+/* Summary cards follow the same visual language */
+.card.card-open{
+  border-top:4px solid #3b82f6;
+  background:#eff6ff;
+}
+.card.card-new{
+  border-top:4px solid #2563eb;
+  background:#eff6ff;
+}
+.card.card-progress{
+  border-top:4px solid #166534;
+  background:#f0fdf4;
+}
+.card.card-waiting{
+  border-top:4px solid #7e22ce;
+  background:#faf5ff;
+}
+.card.card-urgent{
+  border-top:4px solid #b91c1c;
+  background:#fef2f2;
+}
+
+/* Two alternating text colors for table rows */
+#ticketsBody tr:nth-child(odd) td{
+  color:#1f2937;
+}
+#ticketsBody tr:nth-child(even) td{
+  color:#1e3a5f;
+}
+#ticketsBody tr:nth-child(odd) td strong{
+  color:#111827;
+}
+#ticketsBody tr:nth-child(even) td strong{
+  color:#17324d;
+}
+
+/* Keep status pills' own colors stronger than row text */
+#ticketsBody td .pill.new{color:#1d4ed8 !important}
+#ticketsBody td .pill.progress{color:#14532d !important}
+#ticketsBody td .pill.waiting{color:#6d28d9 !important}
+#ticketsBody td .pill.closed{color:#b91c1c !important}
+
 </style>
 </head>
 <body>
@@ -158,16 +219,16 @@ th.sortable:hover{background:#e8eef5}
   </aside>
 
   <main class="content">
-    <div class="top"><div style="display:flex;align-items:center;gap:8px"><h1 id="pageTitle">קריאות אחזקה</h1><span class="header-version-badge">V1.6.4</span></div><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
+    <div class="top"><div style="display:flex;align-items:center;gap:8px"><h1 id="pageTitle">קריאות אחזקה</h1><span class="header-version-badge">V1.6.5</span></div><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
     <div id="notice" class="notice"></div>
 
     <section id="ticketsSection">
       <div class="cards">
-        <div class="card"><div class="label">קריאות פתוחות</div><div id="openCount" class="value">0</div></div>
-        <div class="card"><div class="label">חדשות</div><div id="newCount" class="value">0</div></div>
-        <div class="card"><div class="label">בטיפול</div><div id="progressCount" class="value">0</div></div>
-        <div class="card"><div class="label">ממתינות</div><div id="waitingCount" class="value">0</div></div>
-        <div class="card"><div class="label">דחופות</div><div id="urgentCount" class="value">0</div></div>
+        <div class="card card-open"><div class="label">קריאות פתוחות</div><div id="openCount" class="value">0</div></div>
+        <div class="card card-new"><div class="label">חדשות</div><div id="newCount" class="value">0</div></div>
+        <div class="card card-progress"><div class="label">בטיפול</div><div id="progressCount" class="value">0</div></div>
+        <div class="card card-waiting"><div class="label">ממתינות</div><div id="waitingCount" class="value">0</div></div>
+        <div class="card card-urgent"><div class="label">דחופות</div><div id="urgentCount" class="value">0</div></div>
       </div>
 
       <div class="panel">
