@@ -115,6 +115,22 @@ th.sortable:hover{background:#e8eef5}
   vertical-align:middle;
   white-space:nowrap;
 }
+
+.version-fixed{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:5px 10px;
+  border-radius:999px;
+  background:#111827;
+  color:#fff;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.2px;
+  margin-inline-start:10px;
+  white-space:nowrap;
+}
+
 </style>
 </head>
 <body>
@@ -127,7 +143,7 @@ th.sortable:hover{background:#e8eef5}
   </aside>
 
   <main class="content">
-    <div class="top"><h1 id="pageTitle">קריאות אחזקה</h1><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
+    <div class="top"><h1 id="pageTitle">קריאות אחזקה <span class="version-fixed">V1.6</span></h1><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
     <div id="notice" class="notice"></div>
 
     <section id="ticketsSection">
@@ -257,6 +273,8 @@ th.sortable:hover{background:#e8eef5}
   const SUPABASE_KEY = "sb_publishable_PhMZY9SXqfENVjtn1Ya9vA_4NmJyE3b";
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  let currentStaff = null;
+  let currentStaffRole = null;
   let tickets = [];
   let ticketSortField = "created_at";
   let ticketSortDirection = "desc";
@@ -442,6 +460,13 @@ th.sortable:hover{background:#e8eef5}
         async (payload)=>{
           console.log("Realtime ticket event:", payload);
 
+          const relevantForCurrentUser =
+            currentStaffRole==="manager" ||
+            (currentStaffRole==="technician" &&
+              (payload.new?.assigned_to===currentStaff?.id || payload.old?.assigned_to===currentStaff?.id));
+
+          if(!relevantForCurrentUser) return;
+
           if(payload.eventType === "INSERT"){
             playTone("new");
             const n = payload.new?.ticket_number ? " #" + payload.new.ticket_number : "";
@@ -493,15 +518,32 @@ th.sortable:hover{background:#e8eef5}
     document.getElementById("adminWho").textContent = session.user.email;
 
     const {data:staff,error} = await sb.from("maintenance_users")
-      .select("role,is_active").eq("auth_user_id",session.user.id).maybeSingle();
+      .select("id,role,is_active,full_name").eq("auth_user_id",session.user.id).maybeSingle();
 
-    if(error || !staff || !staff.is_active){
+    if(error || !staff || !staff.is_active || !["manager","technician"].includes(staff.role)){
       alert("אין הרשאה למסך הניהול");
       location.href="portal.html";
       return;
     }
 
-    await loadUsers();
+    currentStaff = staff;
+    currentStaffRole = staff.role;
+
+    // Technicians see only their own assigned tickets and do not manage users.
+    if(currentStaffRole==="technician"){
+      document.querySelectorAll('[data-manager-only], .manager-only').forEach(el=>el.style.display="none");
+      const usersNav=[...document.querySelectorAll("button,a")].find(el=>el.textContent.includes("ניהול משתמשים"));
+      if(usersNav) usersNav.style.display="none";
+      const roleNote=document.createElement("div");
+      roleNote.style.cssText="font-size:12px;color:#475569;margin-top:4px";
+      roleNote.textContent="מצב מטפל — מוצגות רק קריאות המשויכות אליך";
+      const who=document.getElementById("adminWho");
+      if(who?.parentElement) who.parentElement.appendChild(roleNote);
+    }
+
+    if(currentStaffRole==="manager"){
+      await loadUsers();
+    }
     await loadTickets();
     await startTicketsRealtime(session);
   }
@@ -524,7 +566,11 @@ th.sortable:hover{background:#e8eef5}
   }
 
   async function loadTickets(){
-    const {data,error}=await sb.from("maintenance_tickets").select("*").order("created_at",{ascending:false});
+    let ticketQuery=sb.from("maintenance_tickets").select("*").order("created_at",{ascending:false});
+    if(currentStaffRole==="technician" && currentStaff?.id){
+      ticketQuery=ticketQuery.eq("assigned_to",currentStaff.id);
+    }
+    const {data,error}=await ticketQuery;
     if(error){console.error("loadTickets",error);showNotice("שגיאה בטעינת קריאות: "+error.message,"error");return;}
     tickets=data||[];
     updateCounters();

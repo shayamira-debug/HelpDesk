@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1f2937">
-<title>מערכת קריאות אחזקה <span class="version-badge">V1.5.4</span></title>
+<title>מערכת קריאות אחזקה</title>
 <link rel="manifest" href="manifest.webmanifest">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -37,6 +37,22 @@ button{cursor:pointer}.primary{width:100%;background:#2563eb;color:#fff;border-c
   vertical-align:middle;
   white-space:nowrap;
 }
+
+.version-fixed{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:5px 10px;
+  border-radius:999px;
+  background:#111827;
+  color:#fff;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.2px;
+  margin-inline-start:10px;
+  white-space:nowrap;
+}
+
 </style>
 </head>
 <body>
@@ -46,7 +62,7 @@ button{cursor:pointer}.primary{width:100%;background:#2563eb;color:#fff;border-c
   <img src="chamber-logo.png" class="org-logo" alt="איגוד לשכות המסחר">
 </div>
 <div class="brand">מערכת קריאות שירות</div>
-<h1>אחזקה</h1>
+<h1>אחזקה <span class="version-fixed">V1.6</span></h1>
 <div class="sub">כניסה לעובדים ולצוות האחזקה</div>
 <div id="notice" class="notice"></div>
 <div class="field"><label for="email">אימייל</label><input id="email" type="email" autocomplete="email"></div>
