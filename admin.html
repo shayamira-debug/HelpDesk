@@ -147,7 +147,7 @@ th.sortable:hover{background:#e8eef5}
   white-space:nowrap;
 }
 
-/* V1.6.5 - status palette */
+/* V1.6.6 - status palette */
 .pill.new{
   background:#dbeafe !important;
   color:#1d4ed8 !important;
@@ -188,17 +188,13 @@ th.sortable:hover{background:#e8eef5}
 }
 
 /* Two alternating text colors for table rows */
-#ticketsBody tr:nth-child(odd) td{
-  color:#1f2937;
+#ticketsBody tr.row-tone-a td,
+#ticketsBody tr.row-tone-a td strong{
+  color:#111827 !important;
 }
-#ticketsBody tr:nth-child(even) td{
-  color:#1e3a5f;
-}
-#ticketsBody tr:nth-child(odd) td strong{
-  color:#111827;
-}
-#ticketsBody tr:nth-child(even) td strong{
-  color:#17324d;
+#ticketsBody tr.row-tone-b td,
+#ticketsBody tr.row-tone-b td strong{
+  color:#1d4f7a !important;
 }
 
 /* Keep status pills' own colors stronger than row text */
@@ -219,7 +215,7 @@ th.sortable:hover{background:#e8eef5}
   </aside>
 
   <main class="content">
-    <div class="top"><div style="display:flex;align-items:center;gap:8px"><h1 id="pageTitle">קריאות אחזקה</h1><span class="header-version-badge">V1.6.5</span></div><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
+    <div class="top"><div style="display:flex;align-items:center;gap:8px"><h1 id="pageTitle">קריאות אחזקה</h1><span class="header-version-badge">V1.6.6</span></div><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
     <div id="notice" class="notice"></div>
 
     <section id="ticketsSection">
@@ -694,8 +690,8 @@ th.sortable:hover{background:#e8eef5}
       const cmp=String(av).localeCompare(String(bv),"he",{numeric:true,sensitivity:"base"});
       return ticketSortDirection==="asc" ? cmp : -cmp;
     });
-    document.getElementById("ticketsBody").innerHTML=filtered.length ? filtered.map(t=>`
-      <tr class="ticket-row" onclick="openTicket('${t.id}')">
+    document.getElementById("ticketsBody").innerHTML=filtered.length ? filtered.map((t,index)=>`
+      <tr class="ticket-row ${index%2===0?"row-tone-a":"row-tone-b"}" onclick="openTicket('${t.id}')">
         <td>${t.ticket_number??""}</td><td>${formatDateTime(t.created_at)}</td><td><strong>${esc(t.requester_name)}</strong></td><td>${esc(t.subject)}</td><td>${esc(t.category)}</td>
         <td>${esc(t.location)}</td><td class="${t.priority==="דחופה"?"urgent":t.priority==="גבוהה"?"high":""}">${esc(t.priority)}</td>
         <td><span class="pill ${statusClass(t.status)}">${esc(t.status)}</span></td><td>${esc(userName(t.assigned_to))}</td>
