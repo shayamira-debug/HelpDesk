@@ -21,7 +21,7 @@
     .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
     .card,.panel{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
     .card{padding:18px}.label{color:#6b7280;font-size:13px}.value{font-size:28px;font-weight:700;margin-top:8px}
-    .panel{padding:18px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .panel{padding:18px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
     input,select,textarea,button{padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-family:inherit}
     button{cursor:pointer}.primary{background:#2563eb;color:#fff;border-color:#2563eb}.secondary{background:#fff}
     .danger{background:#fff1f2;color:#9f1239;border-color:#fecdd3}
@@ -46,6 +46,44 @@
   
 .brand-logo{display:flex;justify-content:center;padding:8px 4px 18px}
 .brand-logo img{width:195px;max-width:100%;height:auto;background:#fff;border-radius:8px;padding:7px}
+
+
+/* V1.2 - enhanced ticket table */
+.panel{border:1px solid #e7ecf2}
+table{border-spacing:0;border-collapse:separate;overflow:hidden;border-radius:12px}
+thead th{
+  background:#f1f5f9;
+  color:#334155;
+  font-weight:700;
+  padding:14px 12px;
+  border-bottom:2px solid #dbe3ec;
+}
+tbody td{
+  padding:14px 12px;
+  border-bottom:1px solid #e8edf3;
+  background:#fff;
+}
+tbody tr:nth-child(even) td{background:#fbfdff}
+tbody tr.ticket-row:hover td{
+  background:#f3f8fd;
+  transition:background .15s ease;
+}
+tbody tr.ticket-row td:first-child{
+  font-weight:700;
+  color:#475569;
+}
+#ticketsTableWrap{overflow-x:auto;border-radius:12px}
+.auto-refresh-note{
+  font-size:12px;
+  color:#64748b;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-right:auto;
+}
+.auto-refresh-dot{
+  width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;
+}
 
 </style>
 </head>
@@ -84,10 +122,10 @@
           <button class="primary" onclick="loadTickets()">רענון</button>
         </div>
 
-        <table>
-          <thead><tr><th>מס'</th><th>נושא</th><th>מבקש</th><th>קטגוריה</th><th>מיקום</th><th>דחיפות</th><th>סטטוס</th><th>מטפל</th></tr></thead>
+        <div id="ticketsTableWrap"><table>
+          <thead><tr><th>מס'</th><th>פותח הקריאה</th><th>נושא</th><th>קטגוריה</th><th>מיקום</th><th>דחיפות</th><th>סטטוס</th><th>מטפל</th></tr></thead>
           <tbody id="ticketsBody"></tbody>
-        </table>
+        </table></div>
       </div>
     </section>
 
@@ -121,7 +159,7 @@
     </div>
 
     <div class="grid">
-      <div class="field"><label>מבקש</label><div id="requesterName" class="readonly"></div></div>
+      <div class="field"><label>פותח הקריאה</label><div id="requesterName" class="readonly"></div></div>
       <div class="field"><label>אימייל</label><div id="requesterEmail" class="readonly"></div></div>
       <div class="field"><label>קטגוריה</label><div id="ticketCategory" class="readonly"></div></div>
       <div class="field"><label>מיקום</label><div id="ticketLocation" class="readonly"></div></div>
@@ -264,7 +302,7 @@
     });
     document.getElementById("ticketsBody").innerHTML=filtered.length ? filtered.map(t=>`
       <tr class="ticket-row" onclick="openTicket('${t.id}')">
-        <td>${t.ticket_number??""}</td><td>${esc(t.subject)}</td><td>${esc(t.requester_name)}</td><td>${esc(t.category)}</td>
+        <td>${t.ticket_number??""}</td><td><strong>${esc(t.requester_name)}</strong></td><td>${esc(t.subject)}</td><td>${esc(t.category)}</td>
         <td>${esc(t.location)}</td><td class="${t.priority==="דחופה"?"urgent":t.priority==="גבוהה"?"high":""}">${esc(t.priority)}</td>
         <td><span class="pill ${statusClass(t.status)}">${esc(t.status)}</span></td><td>${esc(userName(t.assigned_to))}</td>
       </tr>`).join("") : `<tr><td colspan="8" style="text-align:center;color:#6b7280">אין קריאות להצגה</td></tr>`;
@@ -438,7 +476,54 @@
   function userBackdropClose(e){if(e.target.id==="userModalBackdrop")closeUserModal();}
   function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
 
+
+  let ticketsRealtimeChannel = null;
+
+  function startTicketsRealtime(){
+    if(ticketsRealtimeChannel) return;
+
+    ticketsRealtimeChannel = sb
+      .channel("maintenance-tickets-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "maintenance_tickets"
+        },
+        async (payload) => {
+          console.log("Realtime ticket change:", payload.eventType);
+          const modal=document.getElementById("ticketModalBackdrop");
+
+          // If a ticket edit dialog is open, avoid interrupting editing.
+          // The table will refresh immediately after the dialog is closed/saved.
+          if(!modal || modal.style.display!=="flex"){
+            await loadTickets();
+          }
+        }
+      )
+      .subscribe((status)=>{
+        const note=document.querySelector(".auto-refresh-note");
+        if(!note) return;
+
+        if(status==="SUBSCRIBED"){
+          note.innerHTML='<span class="auto-refresh-dot"></span>עדכון חי מחובר';
+        } else if(status==="CHANNEL_ERROR" || status==="TIMED_OUT"){
+          note.innerHTML='<span class="auto-refresh-dot" style="background:#f59e0b"></span>חיבור חי לא זמין';
+        }
+      });
+  }
+
+  // Very slow fallback refresh in case a realtime event is missed.
+  setInterval(async ()=>{
+    const modal=document.getElementById("ticketModalBackdrop");
+    if(!modal || modal.style.display!=="flex"){
+      await loadTickets();
+    }
+  },300000);
+
   init();
+  startTicketsRealtime();
 </script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));}</script>
 </body>

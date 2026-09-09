@@ -43,7 +43,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:right;padding:10px;bo
   <div class="top">
     <div>
       <h1>קריאות האחזקה שלי</h1>
-      <div id="who" class="muted"></div>
+      <div id="who" class="muted"></div><div id="portal-live-status" class="muted" style="margin-top:4px">מתחבר לעדכון חי...</div>
     </div>
     <button id="logoutBtn" class="logout" type="button">התנתקות</button>
   </div>
@@ -257,6 +257,38 @@ if("serviceWorker" in navigator){
   window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));
 }
 
+
+function startMyTicketsRealtime(){
+  sb
+    .channel("my-tickets-live")
+    .on(
+      "postgres_changes",
+      {
+        event:"*",
+        schema:"public",
+        table:"maintenance_tickets"
+      },
+      async (payload)=>{
+        // RLS controls what the logged-in user can actually fetch.
+        console.log("Realtime ticket change:",payload.eventType);
+        await loadTickets();
+      }
+    )
+    .subscribe((status)=>{
+      const el=document.getElementById("portal-live-status");
+      if(!el) return;
+      if(status==="SUBSCRIBED"){
+        el.textContent="● עדכון חי מחובר";
+      }else if(status==="CHANNEL_ERROR" || status==="TIMED_OUT"){
+        el.textContent="● חיבור חי לא זמין";
+      }
+    });
+}
+
+// Slow fallback only
+setInterval(()=>loadTickets(),300000);
+
+startMyTicketsRealtime();
 init();
 </script>
 </body>
