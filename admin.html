@@ -232,7 +232,7 @@
 
   async function loadTickets(){
     const {data,error}=await sb.from("maintenance_tickets").select("*").order("created_at",{ascending:false});
-    if(error){showNotice("שגיאה בטעינת קריאות: "+error.message,"error");return;}
+    if(error){console.error("loadTickets",error);showNotice("שגיאה בטעינת קריאות: "+error.message,"error");return;}
     tickets=data||[];
     updateCounters();
     renderTickets();
@@ -258,12 +258,12 @@
       const text=[t.ticket_number,t.subject,t.requester_name,t.location,t.category].join(" ");
       return (!q||text.includes(q))&&(!category||t.category===category)&&(!status||t.status===status);
     });
-    document.getElementById("ticketsBody").innerHTML=filtered.map(t=>`
+    document.getElementById("ticketsBody").innerHTML=filtered.length ? filtered.map(t=>`
       <tr class="ticket-row" onclick="openTicket('${t.id}')">
         <td>${t.ticket_number??""}</td><td>${esc(t.subject)}</td><td>${esc(t.requester_name)}</td><td>${esc(t.category)}</td>
         <td>${esc(t.location)}</td><td class="${t.priority==="דחופה"?"urgent":t.priority==="גבוהה"?"high":""}">${esc(t.priority)}</td>
         <td><span class="pill ${statusClass(t.status)}">${esc(t.status)}</span></td><td>${esc(userName(t.assigned_to))}</td>
-      </tr>`).join("");
+      </tr>`).join("") : `<tr><td colspan="8" style="text-align:center;color:#6b7280">אין קריאות להצגה</td></tr>`;
   }
 
   function renderUsers(){

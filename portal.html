@@ -56,9 +56,23 @@ async function init(){
  await loadTickets();
 }
 async function loadTickets(){
- const {data,error}=await sb.from("maintenance_tickets").select("*").order("created_at",{ascending:false});
- if(error){notice(error.message,"error");return;}
- document.getElementById("tbody").innerHTML=(data||[]).map(t=>`<tr><td>${t.ticket_number}</td><td>${esc(t.subject)}</td><td>${esc(t.category)}</td><td>${esc(t.priority)}</td><td>${esc(t.status)}</td></tr>`).join("");
+ if(!user) return;
+ const {data,error}=await sb
+   .from("maintenance_tickets")
+   .select("*")
+   .eq("requester_user_id",user.id)
+   .order("created_at",{ascending:false});
+
+ if(error){
+   console.error("loadTickets",error);
+   notice("שגיאה בטעינת הקריאות שלי: "+error.message,"error");
+   return;
+ }
+
+ const rows=data||[];
+ document.getElementById("tbody").innerHTML=rows.length
+   ? rows.map(t=>`<tr><td>${t.ticket_number}</td><td>${esc(t.subject)}</td><td>${esc(t.category)}</td><td>${esc(t.priority)}</td><td>${esc(t.status)}</td></tr>`).join("")
+   : `<tr><td colspan="5" style="text-align:center;color:#6b7280">אין עדיין קריאות להצגה</td></tr>`;
 }
 document.getElementById("form").addEventListener("submit",async e=>{
  e.preventDefault();
@@ -73,9 +87,17 @@ document.getElementById("form").addEventListener("submit",async e=>{
    description:document.getElementById("description").value.trim()||null,
    status:"חדשה"
  };
- const {data,error}=await sb.from("maintenance_tickets").insert(row).select("id,ticket_number").single();
- if(error){notice(error.message,"error");return;}
- await sb.from("maintenance_ticket_history").insert({ticket_id:data.id,action_type:"פתיחת קריאה",new_value:"חדשה",note:"הקריאה נפתחה על ידי העובד"});
+ const {data,error}=await sb.from("maintenance_tickets").insert(row).select("id,ticket_number,requester_user_id").single();
+ if(error){console.error(error);notice("שמירת הקריאה נכשלה: "+error.message,"error");return;}
+ if(data.requester_user_id!==user.id){
+   console.error("Ticket was not linked to current user",data);
+   notice("הקריאה נשמרה אך לא קושרה למשתמש. פנה למנהל המערכת.","error");
+   return;
+ }
+ const {error:historyError}=await sb.from("maintenance_ticket_history").insert({
+   ticket_id:data.id,action_type:"פתיחת קריאה",new_value:"חדשה",note:"הקריאה נפתחה על ידי העובד"
+ });
+ if(historyError) console.error("history insert",historyError);
  e.target.reset();notice("קריאה #"+data.ticket_number+" נפתחה בהצלחה");await loadTickets();
 });
 async function logout(){
