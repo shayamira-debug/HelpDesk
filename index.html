@@ -84,8 +84,12 @@ async function routeUser(user){
  setStatus("בודק הרשאות...");
  const {data:team,error}=await sb.from("maintenance_users").select("role,is_active").eq("auth_user_id",user.id).maybeSingle();
  if(error){console.error(error);notice("ההתחברות הצליחה, אך בדיקת ההרשאות נכשלה: "+error.message);setStatus("");return;}
- if(team && team.is_active && ["manager","technician"].includes(team.role)){location.href="admin.html";}
- else{location.href="portal.html";}
+ if(team && team.is_active && ["manager","technician"].includes(team.role)){
+   location.href="admin.html";
+ }else{
+   // employee (דייר) and chamber (לשכה) open service requests in the user portal.
+   location.href="portal.html";
+ }
 }
 async function login(){
  const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;
