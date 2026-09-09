@@ -1,0 +1,1 @@
+If create-app-user validates role values, add 'chamber' to the allowed roles array alongside employee, technician, manager.

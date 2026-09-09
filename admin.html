@@ -131,9 +131,25 @@ th.sortable:hover{background:#e8eef5}
   white-space:nowrap;
 }
 
+
+.admin-version-fixed{
+  position:fixed;
+  top:12px;
+  left:12px;
+  z-index:10000;
+  background:#111827;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:999px;
+  padding:6px 11px;
+  font-size:12px;
+  font-weight:800;
+  box-shadow:0 4px 14px rgba(0,0,0,.18);
+}
 </style>
 </head>
 <body>
+<div class="admin-version-fixed">V1.6.1</div>
 <div class="app">
   <aside class="sidebar">
     <div class="brand-logo"><img src="chamber-logo.png" alt="איגוד לשכות המסחר"></div><div class="logo">ניהול אחזקה</div>
@@ -143,7 +159,7 @@ th.sortable:hover{background:#e8eef5}
   </aside>
 
   <main class="content">
-    <div class="top"><h1 id="pageTitle">קריאות אחזקה <span class="version-fixed">V1.6</span></h1><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
+    <div class="top"><h1 id="pageTitle">קריאות אחזקה</h1><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
     <div id="notice" class="notice"></div>
 
     <section id="ticketsSection">
@@ -192,7 +208,8 @@ th.sortable:hover{background:#e8eef5}
           <input id="userSearch" placeholder="חיפוש משתמש..." oninput="renderUsers()">
           <select id="userRoleFilter" onchange="renderUsers()">
             <option value="">כל סוגי המשתמשים</option>
-            <option value="employee">עובד רגיל</option>
+            <option value="employee">דייר</option>
+<option value="chamber">לשכה</option>
             <option value="technician">מטפל</option>
             <option value="manager">מנהל</option>
           </select>
@@ -253,7 +270,8 @@ th.sortable:hover{background:#e8eef5}
       <div class="field"><label>אימייל</label><input id="userEmail" type="email"></div>
       <div class="field" id="passwordField"><label>סיסמה ראשונית</label><input id="userPassword" type="password" minlength="6" placeholder="לפחות 6 תווים"></div>
       <div class="field"><label>תפקיד</label>
-        <select id="userRole"><option value="employee">עובד רגיל</option><option value="technician">מטפל</option><option value="manager">מנהל</option></select>
+        <select id="userRole"><option value="employee">דייר</option>
+<option value="chamber">לשכה</option><option value="technician">מטפל</option><option value="manager">מנהל</option></select>
       </div>
       <div class="field"><label>תחום טיפול</label><input id="userSpecialty" placeholder="לדוגמה: חשמל / תאורה"></div>
       <div class="field full"><label>סטטוס</label>
@@ -586,7 +604,7 @@ th.sortable:hover{background:#e8eef5}
   }
 
   function userName(id){ return users.find(u=>u.id===id)?.full_name || "—"; }
-  function roleName(role){ return role==="manager" ? "מנהל" : role==="technician" ? "מטפל" : "עובד רגיל"; }
+  function roleName(role){ return role==="manager" ? "מנהל" : role==="technician" ? "מטפל" : "דייר"; }
   function statusClass(status){ return {"חדשה":"new","בטיפול":"progress","ממתין":"waiting","סגורה":"closed"}[status]||"closed"; }
 
   function renderTickets(){
