@@ -1,4 +1,4 @@
-const CACHE="maintenance-pwa-v2";
+const CACHE="maintenance-pwa-v3";
 const ASSETS=["./","./index.html","./portal.html","./admin.html","./manifest.webmanifest","./icon.svg"];
 self.addEventListener("install",e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));

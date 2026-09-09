@@ -61,8 +61,52 @@ async function login(){
  finally{btn.disabled=false;btn.textContent="כניסה";setStatus("");}
 }
 async function checkExistingSession(){
- try{const {data:{session}}=await sb.auth.getSession();if(session?.user){setStatus("נמצאה התחברות קיימת...");await routeUser(session.user);}}catch(e){console.error(e);}
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(session?.user){
+      showExistingSession(session.user);
+    }
+  }catch(e){
+    console.error(e);
+  }
 }
+
+function showExistingSession(user){
+  const email = user?.email || "משתמש מחובר";
+  const card = document.querySelector(".card");
+
+  // Hide login fields/button while a valid session exists
+  document.querySelectorAll(".field").forEach(el=>el.style.display="none");
+  document.getElementById("loginBtn").style.display="none";
+  setStatus("");
+
+  let panel=document.getElementById("existingSessionPanel");
+  if(!panel){
+    panel=document.createElement("div");
+    panel.id="existingSessionPanel";
+    panel.innerHTML=`
+      <div style="background:#eff6ff;color:#1d4ed8;padding:14px;border-radius:10px;margin-bottom:14px">
+        אתה כבר מחובר כ־<strong id="existingSessionEmail"></strong>
+      </div>
+      <button id="continueBtn" class="primary" type="button">המשך למערכת</button>
+      <button id="sessionLogoutBtn" type="button" style="width:100%;margin-top:8px;background:#fff">התנתקות</button>
+    `;
+    card.insertBefore(panel, document.querySelector(".small"));
+    document.getElementById("continueBtn").addEventListener("click", async ()=>{
+      const {data:{session}}=await sb.auth.getSession();
+      if(session?.user) await routeUser(session.user);
+    });
+    document.getElementById("sessionLogoutBtn").addEventListener("click", async ()=>{
+      try{
+        await sb.auth.signOut();
+      }finally{
+        location.replace("./index.html");
+      }
+    });
+  }
+  document.getElementById("existingSessionEmail").textContent=email;
+}
+
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));}
 checkExistingSession();
 </script>

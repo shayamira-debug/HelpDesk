@@ -20,7 +20,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:right;padding:10px;bo
 </head>
 <body>
 <div class="wrap">
-<div class="top"><div><h1>קריאות האחזקה שלי</h1><div id="who"></div></div><button class="logout" onclick="logout()">התנתקות</button></div>
+<div class="top"><div><h1>קריאות האחזקה שלי</h1><div id="who"></div></div><button class="logout" type="button" onclick="logout(); return false;">התנתקות</button></div>
 <div id="notice" class="notice"></div>
 
 <div class="card">
@@ -78,7 +78,20 @@ document.getElementById("form").addEventListener("submit",async e=>{
  await sb.from("maintenance_ticket_history").insert({ticket_id:data.id,action_type:"פתיחת קריאה",new_value:"חדשה",note:"הקריאה נפתחה על ידי העובד"});
  e.target.reset();notice("קריאה #"+data.ticket_number+" נפתחה בהצלחה");await loadTickets();
 });
-async function logout(){await sb.auth.signOut();location.href="index.html";}
+async function logout(){
+  const btn = document.querySelector(".logout");
+  if(btn){ btn.disabled=true; btn.textContent="מתנתק..."; }
+  try{
+    const {error}=await sb.auth.signOut();
+    if(error) console.error(error);
+  }catch(e){
+    console.error(e);
+  }finally{
+    localStorage.removeItem("supabase.auth.token");
+    sessionStorage.clear();
+    location.replace("./index.html");
+  }
+}
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
 init();
 </script>

@@ -55,7 +55,7 @@
   </aside>
 
   <main class="content">
-    <div class="top"><h1 id="pageTitle">קריאות אחזקה</h1><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout()">התנתקות</button></div></div>
+    <div class="top"><h1 id="pageTitle">קריאות אחזקה</h1><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
     <div id="notice" class="notice"></div>
 
     <section id="ticketsSection">
@@ -214,8 +214,13 @@
   }
 
   async function logout(){
-    await sb.auth.signOut();
-    location.href="index.html";
+    try{
+      await sb.auth.signOut();
+    }catch(e){
+      console.error(e);
+    }finally{
+      location.replace("./index.html");
+    }
   }
 
   async function loadUsers(){
