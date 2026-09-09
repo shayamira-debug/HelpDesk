@@ -51,11 +51,11 @@
     <div class="logo">ניהול אחזקה</div>
     <div class="sub">מערכת קריאות שירות</div>
     <button id="navTickets" class="nav active" onclick="showSection('tickets')">🛠️ קריאות אחזקה</button>
-    <button id="navUsers" class="nav" onclick="showSection('users')">👥 צוות אחזקה</button>
+    <button id="navUsers" class="nav" onclick="showSection('users')">👥 ניהול משתמשים</button>
   </aside>
 
   <main class="content">
-    <div class="top"><h1 id="pageTitle">קריאות אחזקה</h1><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">צוות אחזקה</div><button onclick="logout()">התנתקות</button></div></div>
+    <div class="top"><h1 id="pageTitle">קריאות אחזקה</h1><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout()">התנתקות</button></div></div>
     <div id="notice" class="notice"></div>
 
     <section id="ticketsSection">
@@ -90,13 +90,14 @@
     <section id="usersSection" class="hidden">
       <div class="panel">
         <div class="toolbar">
-          <input id="userSearch" placeholder="חיפוש מטפל..." oninput="renderUsers()">
+          <input id="userSearch" placeholder="חיפוש משתמש..." oninput="renderUsers()">
           <select id="userRoleFilter" onchange="renderUsers()">
-            <option value="">כל התפקידים</option>
-            <option value="manager">מנהל אחזקה</option>
+            <option value="">כל סוגי המשתמשים</option>
+            <option value="employee">עובד רגיל</option>
             <option value="technician">מטפל</option>
+            <option value="manager">מנהל</option>
           </select>
-          <button class="primary" onclick="openNewUser()">+ הוסף איש צוות</button>
+          <button class="primary" onclick="openNewUser()">+ הוסף משתמש</button>
         </div>
 
         <table>
@@ -152,8 +153,9 @@
     <div class="grid">
       <div class="field"><label>שם מלא</label><input id="userFullName"></div>
       <div class="field"><label>אימייל</label><input id="userEmail" type="email"></div>
+      <div class="field" id="passwordField"><label>סיסמה ראשונית</label><input id="userPassword" type="password" minlength="6" placeholder="לפחות 6 תווים"></div>
       <div class="field"><label>תפקיד</label>
-        <select id="userRole"><option value="manager">מנהל אחזקה</option><option value="technician">מטפל</option></select>
+        <select id="userRole"><option value="employee">עובד רגיל</option><option value="technician">מטפל</option><option value="manager">מנהל</option></select>
       </div>
       <div class="field"><label>תחום טיפול</label><input id="userSpecialty" placeholder="לדוגמה: חשמל / תאורה"></div>
       <div class="field full"><label>סטטוס</label>
@@ -192,7 +194,7 @@
     document.getElementById("usersSection").classList.toggle("hidden", ticketsOn);
     document.getElementById("navTickets").classList.toggle("active", ticketsOn);
     document.getElementById("navUsers").classList.toggle("active", !ticketsOn);
-    document.getElementById("pageTitle").textContent = ticketsOn ? "קריאות אחזקה" : "צוות אחזקה";
+    document.getElementById("pageTitle").textContent = ticketsOn ? "קריאות אחזקה" : "ניהול משתמשים";
     if(!ticketsOn) loadUsers();
   }
 
@@ -240,7 +242,7 @@
   }
 
   function userName(id){ return users.find(u=>u.id===id)?.full_name || "—"; }
-  function roleName(role){ return role==="manager" ? "מנהל אחזקה" : "מטפל"; }
+  function roleName(role){ return role==="manager" ? "מנהל" : role==="technician" ? "מטפל" : "עובד רגיל"; }
   function statusClass(status){ return {"חדשה":"new","בטיפול":"progress","ממתין":"waiting","נפתרה":"resolved","סגורה":"closed"}[status]||"closed"; }
 
   function renderTickets(){
@@ -323,10 +325,12 @@
 
   function openNewUser(){
     currentUser=null;
-    document.getElementById("userModalTitle").textContent="הוספת איש צוות";
+    document.getElementById("userModalTitle").textContent="הוספת משתמש";
     document.getElementById("userFullName").value="";
     document.getElementById("userEmail").value="";
-    document.getElementById("userRole").value="technician";
+    document.getElementById("userRole").value="employee";
+    document.getElementById("userPassword").value="";
+    document.getElementById("passwordField").style.display="flex";
     document.getElementById("userSpecialty").value="";
     document.getElementById("userActive").value="true";
     document.getElementById("userModalBackdrop").style.display="flex";
@@ -334,10 +338,12 @@
 
   function openUser(id){
     currentUser=users.find(u=>u.id===id); if(!currentUser)return;
-    document.getElementById("userModalTitle").textContent="עריכת איש צוות";
+    document.getElementById("userModalTitle").textContent="עריכת משתמש";
     document.getElementById("userFullName").value=currentUser.full_name||"";
     document.getElementById("userEmail").value=currentUser.email||"";
-    document.getElementById("userRole").value=currentUser.role||"technician";
+    document.getElementById("userRole").value=currentUser.role||"employee";
+    document.getElementById("userPassword").value="";
+    document.getElementById("passwordField").style.display="none";
     document.getElementById("userSpecialty").value=currentUser.specialty||"";
     document.getElementById("userActive").value=String(!!currentUser.is_active);
     document.getElementById("userModalBackdrop").style.display="flex";
@@ -345,23 +351,76 @@
 
   async function saveUser(){
     const full_name=document.getElementById("userFullName").value.trim();
-    const email=document.getElementById("userEmail").value.trim()||null;
+    const email=document.getElementById("userEmail").value.trim();
     const role=document.getElementById("userRole").value;
     const specialty=document.getElementById("userSpecialty").value.trim()||null;
     const is_active=document.getElementById("userActive").value==="true";
-    if(!full_name){showNotice("יש להזין שם מלא","error");return;}
 
-    let error;
-    if(currentUser){
-      ({error}=await sb.from("maintenance_users").update({full_name,email,role,specialty,is_active}).eq("id",currentUser.id));
-    }else{
-      ({error}=await sb.from("maintenance_users").insert({full_name,email,role,specialty,is_active}));
+    if(!full_name || !email){
+      showNotice("יש להזין שם מלא ואימייל","error");
+      return;
     }
-    if(error){showNotice("שמירת איש הצוות נכשלה: "+error.message,"error");return;}
-    showNotice(currentUser?"איש הצוות עודכן בהצלחה":"איש הצוות נוסף בהצלחה","ok");
-    closeUserModal();
-    await loadUsers();
-    await loadTickets();
+
+    // Existing user: update application profile only
+    if(currentUser){
+      const {error}=await sb.from("maintenance_users")
+        .update({full_name,email,role,specialty,is_active})
+        .eq("id",currentUser.id);
+
+      if(error){
+        showNotice("עדכון המשתמש נכשל: "+error.message,"error");
+        return;
+      }
+
+      showNotice("המשתמש עודכן בהצלחה","ok");
+      closeUserModal();
+      await loadUsers();
+      await loadTickets();
+      return;
+    }
+
+    // New user: create both Auth account and application profile via Edge Function
+    const password=document.getElementById("userPassword").value;
+    if(password.length<6){
+      showNotice("יש להזין סיסמה ראשונית של לפחות 6 תווים","error");
+      return;
+    }
+
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){
+      showNotice("ההתחברות פגה. התחבר מחדש.","error");
+      return;
+    }
+
+    try{
+      const response=await fetch(
+        SUPABASE_URL + "/functions/v1/create-app-user",
+        {
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            "Authorization":"Bearer "+session.access_token,
+            "apikey":SUPABASE_KEY
+          },
+          body:JSON.stringify({full_name,email,password,role,specialty})
+        }
+      );
+
+      const result=await response.json();
+
+      if(!response.ok){
+        showNotice("יצירת המשתמש נכשלה: "+(result.error||"שגיאה לא ידועה"),"error");
+        return;
+      }
+
+      showNotice("המשתמש נוצר בהצלחה","ok");
+      closeUserModal();
+      await loadUsers();
+      await loadTickets();
+    }catch(err){
+      console.error(err);
+      showNotice("שגיאה בהפעלת פונקציית יצירת המשתמש","error");
+    }
   }
 
   function closeTicketModal(){document.getElementById("ticketModalBackdrop").style.display="none";currentTicket=null;}
