@@ -85,6 +85,15 @@ tbody tr.ticket-row td:first-child{
   width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;
 }
 
+
+.sound-btn{
+  border:1px solid #cbd5e1;
+  background:#fff;
+  color:#334155;
+  font-weight:700;
+}
+.sound-btn:hover{background:#f8fafc}
+
 </style>
 </head>
 <body>
@@ -120,6 +129,7 @@ tbody tr.ticket-row td:first-child{
             <option value="">כל הסטטוסים</option><option>חדשה</option><option>בטיפול</option><option>ממתין</option><option>סגורה</option>
           </select>
           <button class="primary" onclick="loadTickets()">רענון</button>
+          <button id="soundToggleBtn" class="sound-btn" type="button" onclick="toggleSound()">🔕 הפעל צליל</button>
         </div>
 
         <div id="ticketsTableWrap"><table>
@@ -241,6 +251,100 @@ tbody tr.ticket-row td:first-child{
   }
 
 
+
+  let audioCtx = null;
+  let soundEnabled = localStorage.getItem("helpdesk_sound_enabled") === "1";
+
+  function ensureAudioContext(){
+    if(!audioCtx){
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if(AudioContext) audioCtx = new AudioContext();
+    }
+    if(audioCtx && audioCtx.state === "suspended"){
+      audioCtx.resume().catch(()=>{});
+    }
+  }
+
+  function playTone(kind){
+    if(!soundEnabled) return;
+    ensureAudioContext();
+    if(!audioCtx) return;
+
+    const now = audioCtx.currentTime;
+
+    if(kind === "new"){
+      // Two-note alert for a new ticket.
+      [880, 1175].forEach((freq, i)=>{
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, now + i*0.16);
+        gain.gain.exponentialRampToValueAtTime(0.18, now + i*0.16 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i*0.16 + 0.14);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now + i*0.16);
+        osc.stop(now + i*0.16 + 0.16);
+      });
+    }else{
+      // Short softer tone for status changes.
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 660;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    }
+  }
+
+  function showLiveToast(text){
+    let toast = document.getElementById("liveToast");
+    if(!toast){
+      toast = document.createElement("div");
+      toast.id = "liveToast";
+      toast.style.cssText = `
+        position:fixed; left:20px; bottom:20px; z-index:9999;
+        background:#1f2937; color:#fff; padding:12px 16px;
+        border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.22);
+        font-size:14px; opacity:0; transform:translateY(10px);
+        transition:.2s ease; max-width:min(360px,calc(100vw - 40px));
+      `;
+      document.body.appendChild(toast);
+    }
+    toast.textContent = text;
+    toast.style.opacity = "1";
+    toast.style.transform = "translateY(0)";
+    clearTimeout(window.__helpdeskToastTimer);
+    window.__helpdeskToastTimer = setTimeout(()=>{
+      toast.style.opacity = "0";
+      toast.style.transform = "translateY(10px)";
+    },3500);
+  }
+
+  function updateSoundButton(){
+    const btn = document.getElementById("soundToggleBtn");
+    if(!btn) return;
+    btn.textContent = soundEnabled ? "🔔 צליל פעיל" : "🔕 הפעל צליל";
+    btn.setAttribute("aria-pressed", soundEnabled ? "true" : "false");
+  }
+
+  function toggleSound(){
+    soundEnabled = !soundEnabled;
+    localStorage.setItem("helpdesk_sound_enabled", soundEnabled ? "1" : "0");
+    if(soundEnabled){
+      ensureAudioContext();
+      playTone("status"); // confirmation sound after user gesture
+      showLiveToast("התראות קוליות הופעלו");
+    }else{
+      showLiveToast("התראות קוליות כובו");
+    }
+    updateSoundButton();
+  }
+
   let ticketsRealtimeChannel = null;
 
   async function startTicketsRealtime(session){
@@ -265,6 +369,23 @@ tbody tr.ticket-row td:first-child{
         },
         async (payload)=>{
           console.log("Realtime ticket event:", payload);
+
+          if(payload.eventType === "INSERT"){
+            playTone("new");
+            const n = payload.new?.ticket_number ? " #" + payload.new.ticket_number : "";
+            showLiveToast("קריאה חדשה התקבלה" + n);
+          }
+
+          if(payload.eventType === "UPDATE"){
+            const oldStatus = payload.old?.status;
+            const newStatus = payload.new?.status;
+            if(oldStatus && newStatus && oldStatus !== newStatus){
+              playTone("status");
+              const n = payload.new?.ticket_number ? " #" + payload.new.ticket_number : "";
+              showLiveToast("סטטוס קריאה" + n + " השתנה: " + oldStatus + " → " + newStatus);
+            }
+          }
+
           const modal=document.getElementById("ticketModalBackdrop");
           if(!modal || modal.style.display!=="flex"){
             await loadTickets();
