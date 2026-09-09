@@ -1,121 +1,240 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<link rel="manifest" href="manifest.webmanifest">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1f2937">
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>קריאות האחזקה שלי</title>
+<link rel="manifest" href="manifest.webmanifest">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f5f7fb;color:#1f2937}
-.wrap{max-width:900px;margin:30px auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f5f7fb;color:#1f2937}
+.wrap{max-width:900px;margin:30px auto;padding:18px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
 .card{background:#fff;padding:22px;border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.06);margin-bottom:18px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:flex;flex-direction:column;gap:6px}.full{grid-column:1/-1}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}.full{grid-column:1/-1}
 input,select,textarea,button{font:inherit;padding:10px 11px;border:1px solid #d1d5db;border-radius:8px;background:#fff}
 button{cursor:pointer}.primary{background:#2563eb;color:#fff;border-color:#2563eb}.logout{background:#fff}
+button:disabled{opacity:.6;cursor:not-allowed}
 table{width:100%;border-collapse:collapse}th,td{text-align:right;padding:10px;border-bottom:1px solid #e5e7eb;font-size:14px}
 .notice{display:none;padding:11px;border-radius:8px;margin-bottom:12px}.ok{background:#ecfdf5;color:#166534}.error{background:#fef2f2;color:#991b1b}
-@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.wrap{padding:10px}}
+.muted{color:#6b7280;font-size:13px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.wrap{padding:10px}.top{align-items:flex-start}}
 </style>
 </head>
 <body>
 <div class="wrap">
-<div class="top"><div><h1>קריאות האחזקה שלי</h1><div id="who"></div></div><button class="logout" type="button" onclick="logout(); return false;">התנתקות</button></div>
-<div id="notice" class="notice"></div>
+  <div class="top">
+    <div>
+      <h1>קריאות האחזקה שלי</h1>
+      <div id="who" class="muted"></div>
+    </div>
+    <button id="logoutBtn" class="logout" type="button">התנתקות</button>
+  </div>
 
-<div class="card">
-<h2>פתיחת קריאה חדשה</h2>
-<form id="form">
-<div class="grid">
-<div class="field"><label>שם מלא</label><input id="name" required></div>
-<div class="field"><label>קטגוריה</label><select id="category" required><option value="">בחר</option><option>מזגן</option><option>חשמל</option><option>תאורה</option><option>ריהוט</option><option>ניקיון</option><option>אינסטלציה</option><option>אחר</option></select></div>
-<div class="field"><label>מיקום</label><input id="location"></div>
-<div class="field"><label>דחיפות</label><select id="priority"><option>רגילה</option><option>גבוהה</option><option>דחופה</option></select></div>
-<div class="field full"><label>נושא</label><input id="subject" required></div>
-<div class="field full"><label>תיאור</label><textarea id="description" rows="4"></textarea></div>
-</div>
-<div style="margin-top:14px"><button class="primary">שליחת קריאה</button></div>
-</form>
+  <div id="notice" class="notice"></div>
+
+  <div class="card">
+    <h2>פתיחת קריאה חדשה</h2>
+    <form id="form">
+      <div class="grid">
+        <div class="field">
+          <label>שם מלא</label>
+          <input id="name" required>
+        </div>
+        <div class="field">
+          <label>קטגוריה</label>
+          <select id="category" required>
+            <option value="">בחר</option>
+            <option>מזגן</option><option>חשמל</option><option>תאורה</option>
+            <option>ריהוט</option><option>ניקיון</option><option>אינסטלציה</option><option>אחר</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>מיקום</label>
+          <input id="location">
+        </div>
+        <div class="field">
+          <label>דחיפות</label>
+          <select id="priority">
+            <option>רגילה</option><option>גבוהה</option><option>דחופה</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>נושא</label>
+          <input id="subject" required>
+        </div>
+        <div class="field full">
+          <label>תיאור</label>
+          <textarea id="description" rows="4"></textarea>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <button id="submitBtn" class="primary" type="submit">שליחת קריאה</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>הקריאות שלי</h2>
+    <table>
+      <thead><tr><th>מס'</th><th>נושא</th><th>קטגוריה</th><th>דחיפות</th><th>סטטוס</th></tr></thead>
+      <tbody id="tbody">
+        <tr><td colspan="5" class="muted" style="text-align:center">טוען...</td></tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
-<div class="card">
-<h2>הקריאות שלי</h2>
-<table><thead><tr><th>מס'</th><th>נושא</th><th>קטגוריה</th><th>דחיפות</th><th>סטטוס</th></tr></thead><tbody id="tbody"></tbody></table>
-</div>
-</div>
 <script>
-const URL="https://jzerktuuprgmotckfraw.supabase.co";
-const KEY="sb_publishable_PhMZY9SXqfENVjtn1Ya9vA_4NmJyE3b";
-const sb=window.supabase.createClient(URL,KEY);
-let user=null;
-function notice(t,type="ok"){const e=document.getElementById("notice");e.textContent=t;e.className="notice "+type;e.style.display="block";setTimeout(()=>e.style.display="none",3000)}
+const SUPABASE_URL = "https://jzerktuuprgmotckfraw.supabase.co";
+const SUPABASE_KEY = "sb_publishable_PhMZY9SXqfENVjtn1Ya9vA_4NmJyE3b";
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+
+function showNotice(text,type="ok"){
+  const e=document.getElementById("notice");
+  e.textContent=text;
+  e.className="notice "+type;
+  e.style.display="block";
+  setTimeout(()=>e.style.display="none",3500);
+}
+
+function esc(v){
+  return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+}
+
 async function init(){
- const {data:{session}}=await sb.auth.getSession();
- if(!session){location.href="index.html";return;}
- user=session.user;document.getElementById("who").textContent=user.email;
- await loadTickets();
+  const {data:{session},error}=await sb.auth.getSession();
+
+  if(error){
+    console.error("getSession",error);
+    showNotice("שגיאה בבדיקת ההתחברות: "+error.message,"error");
+    return;
+  }
+
+  if(!session?.user){
+    location.replace("./index.html");
+    return;
+  }
+
+  currentUser=session.user;
+  document.getElementById("who").textContent=currentUser.email || "";
+
+  await loadTickets();
 }
+
 async function loadTickets(){
- if(!user) return;
- const {data,error}=await sb
-   .from("maintenance_tickets")
-   .select("*")
-   .eq("requester_user_id",user.id)
-   .order("created_at",{ascending:false});
+  if(!currentUser) return;
 
- if(error){
-   console.error("loadTickets",error);
-   notice("שגיאה בטעינת הקריאות שלי: "+error.message,"error");
-   return;
- }
+  const {data,error}=await sb
+    .from("maintenance_tickets")
+    .select("id,ticket_number,subject,category,priority,status,created_at")
+    .eq("requester_user_id",currentUser.id)
+    .order("created_at",{ascending:false});
 
- const rows=data||[];
- document.getElementById("tbody").innerHTML=rows.length
-   ? rows.map(t=>`<tr><td>${t.ticket_number}</td><td>${esc(t.subject)}</td><td>${esc(t.category)}</td><td>${esc(t.priority)}</td><td>${esc(t.status)}</td></tr>`).join("")
-   : `<tr><td colspan="5" style="text-align:center;color:#6b7280">אין עדיין קריאות להצגה</td></tr>`;
+  if(error){
+    console.error("loadTickets",error);
+    showNotice("שגיאה בטעינת הקריאות: "+error.message,"error");
+    document.getElementById("tbody").innerHTML =
+      '<tr><td colspan="5" style="text-align:center;color:#991b1b">שגיאה בטעינת הקריאות</td></tr>';
+    return;
+  }
+
+  const rows=data||[];
+  document.getElementById("tbody").innerHTML = rows.length
+    ? rows.map(t=>`<tr>
+        <td>${t.ticket_number??""}</td>
+        <td>${esc(t.subject)}</td>
+        <td>${esc(t.category)}</td>
+        <td>${esc(t.priority)}</td>
+        <td>${esc(t.status)}</td>
+      </tr>`).join("")
+    : '<tr><td colspan="5" style="text-align:center;color:#6b7280">אין עדיין קריאות להצגה</td></tr>';
 }
+
 document.getElementById("form").addEventListener("submit",async e=>{
- e.preventDefault();
- const row={
-   requester_user_id:user.id,
-   requester_name:document.getElementById("name").value.trim(),
-   requester_email:user.email,
-   category:document.getElementById("category").value,
-   location:document.getElementById("location").value.trim()||null,
-   priority:document.getElementById("priority").value,
-   subject:document.getElementById("subject").value.trim(),
-   description:document.getElementById("description").value.trim()||null,
-   status:"חדשה"
- };
- const {data,error}=await sb.from("maintenance_tickets").insert(row).select("id,ticket_number,requester_user_id").single();
- if(error){console.error(error);notice("שמירת הקריאה נכשלה: "+error.message,"error");return;}
- if(data.requester_user_id!==user.id){
-   console.error("Ticket was not linked to current user",data);
-   notice("הקריאה נשמרה אך לא קושרה למשתמש. פנה למנהל המערכת.","error");
-   return;
- }
- const {error:historyError}=await sb.from("maintenance_ticket_history").insert({
-   ticket_id:data.id,action_type:"פתיחת קריאה",new_value:"חדשה",note:"הקריאה נפתחה על ידי העובד"
- });
- if(historyError) console.error("history insert",historyError);
- e.target.reset();notice("קריאה #"+data.ticket_number+" נפתחה בהצלחה");await loadTickets();
+  e.preventDefault();
+
+  if(!currentUser){
+    showNotice("המשתמש אינו מחובר.","error");
+    return;
+  }
+
+  const submitBtn=document.getElementById("submitBtn");
+  submitBtn.disabled=true;
+  submitBtn.textContent="שולח...";
+
+  const row={
+    requester_user_id:currentUser.id,
+    requester_name:document.getElementById("name").value.trim(),
+    requester_email:currentUser.email,
+    category:document.getElementById("category").value,
+    location:document.getElementById("location").value.trim()||null,
+    priority:document.getElementById("priority").value,
+    subject:document.getElementById("subject").value.trim(),
+    description:document.getElementById("description").value.trim()||null,
+    status:"חדשה"
+  };
+
+  const {data,error}=await sb
+    .from("maintenance_tickets")
+    .insert(row)
+    .select("id,ticket_number,requester_user_id")
+    .single();
+
+  submitBtn.disabled=false;
+  submitBtn.textContent="שליחת קריאה";
+
+  if(error){
+    console.error("insert ticket",error);
+    showNotice("שמירת הקריאה נכשלה: "+error.message,"error");
+    return;
+  }
+
+  if(data.requester_user_id!==currentUser.id){
+    console.error("requester mismatch",data,currentUser.id);
+    showNotice("הקריאה נשמרה אך לא קושרה למשתמש.","error");
+    return;
+  }
+
+  const {error:historyError}=await sb
+    .from("maintenance_ticket_history")
+    .insert({
+      ticket_id:data.id,
+      action_type:"פתיחת קריאה",
+      new_value:"חדשה",
+      note:"הקריאה נפתחה על ידי העובד"
+    });
+
+  if(historyError) console.error("history insert",historyError);
+
+  e.target.reset();
+  showNotice("קריאה #"+data.ticket_number+" נפתחה בהצלחה");
+  await loadTickets();
 });
-async function logout(){
-  const btn = document.querySelector(".logout");
-  if(btn){ btn.disabled=true; btn.textContent="מתנתק..."; }
+
+document.getElementById("logoutBtn").addEventListener("click",async()=>{
+  const btn=document.getElementById("logoutBtn");
+  btn.disabled=true;
+  btn.textContent="מתנתק...";
   try{
-    const {error}=await sb.auth.signOut();
-    if(error) console.error(error);
+    await sb.auth.signOut();
   }catch(e){
     console.error(e);
   }finally{
-    localStorage.removeItem("supabase.auth.token");
-    sessionStorage.clear();
     location.replace("./index.html");
   }
+});
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));
 }
-function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
+
 init();
 </script>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));}</script>
-</body></html>
+</body>
+</html>
