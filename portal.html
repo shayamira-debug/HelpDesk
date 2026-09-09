@@ -361,7 +361,8 @@ document.getElementById("form").addEventListener("submit",async e=>{
     location:document.getElementById("location").value.trim()||null,
     priority:document.getElementById("priority").value,
     subject:document.getElementById("subject").value.trim(),
-        status:"חדשה"
+    description:null,
+    status:"חדשה"
   };
 
   const {data,error}=await sb
