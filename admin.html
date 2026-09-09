@@ -158,7 +158,7 @@ th.sortable:hover{background:#e8eef5}
   </aside>
 
   <main class="content">
-    <div class="top"><div style="display:flex;align-items:center;gap:8px"><h1 id="pageTitle">קריאות אחזקה</h1><span class="header-version-badge">V1.6.3</span></div><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
+    <div class="top"><div style="display:flex;align-items:center;gap:8px"><h1 id="pageTitle">קריאות אחזקה</h1><span class="header-version-badge">V1.6.4</span></div><div style="display:flex;gap:8px;align-items:center"><div id="adminWho" class="badge">ניהול משתמשים</div><button onclick="logout(); return false;">התנתקות</button></div></div>
     <div id="notice" class="notice"></div>
 
     <section id="ticketsSection">
@@ -603,7 +603,7 @@ th.sortable:hover{background:#e8eef5}
   }
 
   function userName(id){ return users.find(u=>u.id===id)?.full_name || "—"; }
-  function roleName(role){ return role==="manager" ? "מנהל" : role==="technician" ? "מטפל" : "דייר"; }
+  function roleName(role){ return role==="manager" ? "מנהל" : role==="technician" ? "מטפל" : role==="chamber" ? "לשכה" : role==="employee" ? "דייר" : role; }
   function statusClass(status){ return {"חדשה":"new","בטיפול":"progress","ממתין":"waiting","סגורה":"closed"}[status]||"closed"; }
 
   function renderTickets(){
