@@ -361,7 +361,7 @@ document.getElementById("form").addEventListener("submit",async e=>{
     location:document.getElementById("location").value.trim()||null,
     priority:document.getElementById("priority").value,
     subject:document.getElementById("subject").value.trim(),
-    description:null,
+    description:document.getElementById("subject").value.trim(),
     status:"חדשה"
   };
 
@@ -376,7 +376,7 @@ document.getElementById("form").addEventListener("submit",async e=>{
 
   if(error){
     console.error("insert ticket",error);
-    showNotice("שמירת הקריאה נכשלה: "+error.message,"error");
+    showNotice("שמירת הקריאה נכשלה: "+error.message+(error.details?" | "+error.details:""),"error");
     return;
   }
 
