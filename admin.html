@@ -240,19 +240,77 @@ tbody tr.ticket-row td:first-child{
     if(!ticketsOn) loadUsers();
   }
 
+
+  let ticketsRealtimeChannel = null;
+
+  async function startTicketsRealtime(session){
+    if(!session?.access_token) return;
+
+    // Authenticate the Realtime websocket using the signed-in user's JWT.
+    sb.realtime.setAuth(session.access_token);
+
+    if(ticketsRealtimeChannel){
+      await sb.removeChannel(ticketsRealtimeChannel);
+      ticketsRealtimeChannel=null;
+    }
+
+    ticketsRealtimeChannel = sb
+      .channel("maintenance-tickets-live")
+      .on(
+        "postgres_changes",
+        {
+          event:"*",
+          schema:"public",
+          table:"maintenance_tickets"
+        },
+        async (payload)=>{
+          console.log("Realtime ticket event:", payload);
+          const modal=document.getElementById("ticketModalBackdrop");
+          if(!modal || modal.style.display!=="flex"){
+            await loadTickets();
+          }
+        }
+      )
+      .subscribe((status)=>{
+        console.log("Realtime status:",status);
+        const note=document.querySelector(".auto-refresh-note");
+        if(!note) return;
+
+        if(status==="SUBSCRIBED"){
+          note.innerHTML='<span class="auto-refresh-dot"></span>עדכון חי מחובר';
+        }else if(status==="CHANNEL_ERROR" || status==="TIMED_OUT"){
+          note.innerHTML='<span class="auto-refresh-dot" style="background:#f59e0b"></span>חיבור חי לא זמין';
+        }else{
+          note.innerHTML='<span class="auto-refresh-dot" style="background:#94a3b8"></span>מתחבר לעדכון חי...';
+        }
+      });
+  }
+
+  // Slow fallback only.
+  setInterval(async ()=>{
+    const modal=document.getElementById("ticketModalBackdrop");
+    if(!modal || modal.style.display!=="flex"){
+      await loadTickets();
+    }
+  },300000);
+
   async function init(){
     const {data:{session}} = await sb.auth.getSession();
     if(!session){ location.href="index.html"; return; }
     document.getElementById("adminWho").textContent = session.user.email;
+
     const {data:staff,error} = await sb.from("maintenance_users")
       .select("role,is_active").eq("auth_user_id",session.user.id).maybeSingle();
+
     if(error || !staff || !staff.is_active){
       alert("אין הרשאה למסך הניהול");
       location.href="portal.html";
       return;
     }
+
     await loadUsers();
     await loadTickets();
+    await startTicketsRealtime(session);
   }
 
   async function logout(){
@@ -475,55 +533,7 @@ tbody tr.ticket-row td:first-child{
   function closeUserModal(){document.getElementById("userModalBackdrop").style.display="none";currentUser=null;}
   function userBackdropClose(e){if(e.target.id==="userModalBackdrop")closeUserModal();}
   function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
-
-
-  let ticketsRealtimeChannel = null;
-
-  function startTicketsRealtime(){
-    if(ticketsRealtimeChannel) return;
-
-    ticketsRealtimeChannel = sb
-      .channel("maintenance-tickets-live")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "maintenance_tickets"
-        },
-        async (payload) => {
-          console.log("Realtime ticket change:", payload.eventType);
-          const modal=document.getElementById("ticketModalBackdrop");
-
-          // If a ticket edit dialog is open, avoid interrupting editing.
-          // The table will refresh immediately after the dialog is closed/saved.
-          if(!modal || modal.style.display!=="flex"){
-            await loadTickets();
-          }
-        }
-      )
-      .subscribe((status)=>{
-        const note=document.querySelector(".auto-refresh-note");
-        if(!note) return;
-
-        if(status==="SUBSCRIBED"){
-          note.innerHTML='<span class="auto-refresh-dot"></span>עדכון חי מחובר';
-        } else if(status==="CHANNEL_ERROR" || status==="TIMED_OUT"){
-          note.innerHTML='<span class="auto-refresh-dot" style="background:#f59e0b"></span>חיבור חי לא זמין';
-        }
-      });
-  }
-
-  // Very slow fallback refresh in case a realtime event is missed.
-  setInterval(async ()=>{
-    const modal=document.getElementById("ticketModalBackdrop");
-    if(!modal || modal.style.display!=="flex"){
-      await loadTickets();
-    }
-  },300000);
-
-  init();
-  startTicketsRealtime();
+init();
 </script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));}</script>
 </body>

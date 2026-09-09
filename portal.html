@@ -130,6 +130,61 @@ function statusClass(status){
   }[status] || "status-new";
 }
 
+
+let myTicketsRealtimeChannel = null;
+
+async function startMyTicketsRealtime(){
+  if(!currentUser) return;
+
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session?.access_token) return;
+
+  // Explicitly authenticate the Realtime socket with the current JWT.
+  sb.realtime.setAuth(session.access_token);
+
+  if(myTicketsRealtimeChannel){
+    await sb.removeChannel(myTicketsRealtimeChannel);
+    myTicketsRealtimeChannel = null;
+  }
+
+  myTicketsRealtimeChannel = sb
+    .channel("my-tickets-live-" + currentUser.id)
+    .on(
+      "postgres_changes",
+      {
+        event:"*",
+        schema:"public",
+        table:"maintenance_tickets",
+        filter:"requester_user_id=eq." + currentUser.id
+      },
+      async (payload)=>{
+        console.log("Realtime ticket event:", payload);
+        await loadTickets();
+      }
+    )
+    .subscribe((status)=>{
+      console.log("Realtime status:", status);
+      const el=document.getElementById("portal-live-status");
+      if(!el) return;
+
+      if(status==="SUBSCRIBED"){
+        el.textContent="● עדכון חי מחובר";
+        el.style.color="#166534";
+      }else if(status==="CHANNEL_ERROR" || status==="TIMED_OUT"){
+        el.textContent="● חיבור חי לא זמין";
+        el.style.color="#b45309";
+      }else{
+        el.textContent="● מתחבר לעדכון חי...";
+        el.style.color="#6b7280";
+      }
+    });
+}
+
+// Slow fallback in case a websocket event is missed.
+setInterval(()=>{
+  if(currentUser) loadTickets();
+},300000);
+
 async function init(){
   const {data:{session},error}=await sb.auth.getSession();
 
@@ -148,6 +203,7 @@ async function init(){
   document.getElementById("who").textContent=currentUser.email || "";
 
   await loadTickets();
+  await startMyTicketsRealtime();
 }
 
 async function loadTickets(){
@@ -258,37 +314,6 @@ if("serviceWorker" in navigator){
 }
 
 
-function startMyTicketsRealtime(){
-  sb
-    .channel("my-tickets-live")
-    .on(
-      "postgres_changes",
-      {
-        event:"*",
-        schema:"public",
-        table:"maintenance_tickets"
-      },
-      async (payload)=>{
-        // RLS controls what the logged-in user can actually fetch.
-        console.log("Realtime ticket change:",payload.eventType);
-        await loadTickets();
-      }
-    )
-    .subscribe((status)=>{
-      const el=document.getElementById("portal-live-status");
-      if(!el) return;
-      if(status==="SUBSCRIBED"){
-        el.textContent="● עדכון חי מחובר";
-      }else if(status==="CHANNEL_ERROR" || status==="TIMED_OUT"){
-        el.textContent="● חיבור חי לא זמין";
-      }
-    });
-}
-
-// Slow fallback only
-setInterval(()=>loadTickets(),300000);
-
-startMyTicketsRealtime();
 init();
 </script>
 </body>
